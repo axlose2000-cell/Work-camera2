@@ -4,7 +4,6 @@
 
 ## 주요 진행상황
 
-
 - 업무 사진은 앱 내에서만 관리, 기본 갤러리에는 노출되지 않음
 
 ## 어제 / 오늘 작업 요약
@@ -20,7 +19,14 @@
   - `lib/gallery_screen.dart`를 날짜(월/일)별로 그룹화하고, 섹션 헤더(Sticky) 및 '오늘/어제' 상대 날짜 레이블 추가
   - Sliver 기반 레이아웃으로 섹션 헤더 고정(sticky header) 구현 및 관련 렌더 예외를 수정
 
-## 내일(우선순위) 작업 항목
+## 해결된 문제
+
+1. 비디오 초기화 동시성 제어 완료.
+2. 썸네일 생성 및 디스크 캐시 로직 완료.
+3. 갤러리 날짜별 그룹화 및 섹션 헤더 고정 완료.
+4. Sliver 기반 레이아웃 렌더 예외 수정 완료.
+
+## 남은 작업
 
 1. 네이티브 크래시(SIGSEGV, Vulkan 드라이버) 원인 분석
 	- 전체 `adb logcat`과 tombstone 파일 수집 및 분석 필요
@@ -74,9 +80,11 @@ git push origin master
 
 ### 최근 완료 작업
 
-- `lib/media_viewer.dart`: 썸네일 스트립과 LinearProgressIndicator 사이의 간격을 16px에서 20px로 조정하여 UI 개선.
-- GitHub 리모트 URL 업데이트: https://github.com/axlose2000-cell/Work-camera.git 연결 확인 및 설정 완료.
-- 채팅 기록 저장 방법 문서 생성: `CHAT_HISTORY_2025-10-24.md` 파일에 저장 방법 및 예제 추가.
+- `lib/media_viewer.dart`: 비디오 초기화 타임아웃을 30초로 연장하고 동적 조정 가능성을 위한 플레이스홀더 추가.
+- `lib/camera_screen.dart`: `_lastPreviewBytes`를 `dispose()`에서 명시적으로 해제하여 메모리 누수 방지.
+- `lib/gallery_screen.dart`: 대규모 갤러리 스크롤을 위한 페이지네이션 추가.
+- `lib/image_viewer.dart`: 미사용 파일로 확인되어 제거 완료.
+- `pubspec.yaml`: `device_info_plus` 의존성 추가로 동적 동시성 제어 구현.
 
 ### 다음 작업 예정
 
@@ -229,3 +237,21 @@ git push origin master
     }
   )
   ```
+
+## 2025년 11월 3일 진행 상황
+
+- **광고 통합**:
+  - `google_mobile_ads` 패키지를 사용하여 배너 광고를 `media_viewer.dart`와 `gallery_screen.dart`에 통합.
+  - 광고가 콘텐츠를 가리지 않도록 `bottomNavigationBar`에 배치.
+
+- **버그 수정**:
+  - `gallery_screen.dart`에서 누락된 닫는 괄호 `)` 문제 해결.
+  - `flutter pub upgrade`를 통해 종속성 일부를 최신 버전으로 업데이트.
+
+- **빌드 성공**:
+  - 수정된 코드로 빌드 성공 (`app-release.apk` 생성).
+
+## 다음 작업
+
+1. 광고가 모든 디바이스에서 올바르게 표시되는지 테스트.
+2. 추가적인 UI/UX 개선 작업.
