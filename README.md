@@ -69,3 +69,21 @@ git push origin master
 
 ---
 진행상황 및 기능 문의는 깃허브 이슈로 남겨주세요.
+
+## 최신 진행상황 업데이트 (2025년 11월 2일)
+
+### 최근 완료 작업
+
+- `lib/media_viewer.dart`: 썸네일 스트립과 LinearProgressIndicator 사이의 간격을 16px에서 20px로 조정하여 UI 개선.
+- GitHub 리모트 URL 업데이트: https://github.com/axlose2000-cell/Work-camera.git 연결 확인 및 설정 완료.
+- 채팅 기록 저장 방법 문서 생성: `CHAT_HISTORY_2025-10-24.md` 파일에 저장 방법 및 예제 추가.
+
+### 다음 작업 예정
+
+- 디바이스에서 앱 실행 후 검증:
+  - 썸네일 표시, 비디오 초기화, 광고 로드 동작 확인.
+  - 로그 수집 및 분석.
+- iOS Info.plist 설정 확인:
+  - AdMob/ATS 항목을 최소 권한으로 적용.
+- AdMob 실배너 ID 적용:
+  - 프로덕션 광고 유닛 ID로 교체 및 동작 확인.
