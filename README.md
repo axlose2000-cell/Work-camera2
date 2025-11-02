@@ -87,3 +87,145 @@ git push origin master
   - AdMob/ATS 항목을 최소 권한으로 적용.
 - AdMob 실배너 ID 적용:
   - 프로덕션 광고 유닛 ID로 교체 및 동작 확인.
+
+## ⚠️ 주요 이슈 및 개선 사항 (2025년 11월 2일)
+
+### 1. 비디오 초기화 타임아웃 문제
+- **현재**: `media_viewer.dart`에서 15초 타임아웃이 보수적.
+  ```dart
+  await _controller!.initialize().timeout(const Duration(seconds: 15));
+  ```
+- **권장사항**:
+  - 타임아웃을 더 길게 (20-30초).
+  - 기기 사양에 따라 동적 조정.
+  - 초기화 전 메모리 상태 체크.
+
+### 2. 메모리 누수 위험
+- **현재**: `camera_screen.dart`의 `_lastPreviewBytes`가 계속 유지될 수 있음.
+  ```dart
+  Uint8List? _lastPreviewBytes;
+  ```
+- **개선안**:
+  ```dart
+  @override
+  void dispose() {
+    _lastPreviewBytes = null;  // 명시적 해제
+    _flashTimer?.cancel();
+    _controller?.dispose();
+    super.dispose();
+  }
+  ```
+
+### 3. ImageViewer.dart 미사용
+- **현재**: `ImageViewer.dart`가 실제로 사용되지 않음. 대신 `MediaViewer`를 사용 중.
+- **제안**: 불필요한 파일 제거 또는 통합.
+
+### 4. 에러 처리 부족
+- **현재**: 여러 곳에서 `try-catch` 후 단순히 `debugPrint`만 실행.
+  ```dart
+  catch (e) {
+    debugPrint('permission request error: $e');
+    return false;
+  }
+  ```
+- **개선안**:
+  ```dart
+  catch (e) {
+    debugPrint('permission request error: $e');
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('권한 오류: $e'))
+      );
+    }
+    return false;
+  }
+  ```
+
+### 5. 동시성 제어 강화 필요
+- **현재**: `_maxConcurrentInits = 1`로 고정.
+- **문제**: 기기 사양을 고려하지 않음.
+- **개선안**:
+  ```dart
+  int get _maxConcurrentInits {
+    final info = await DeviceInfoPlugin().deviceInfo;
+    return (info.totalMemory ?? 4000000000) > 3000000000 ? 2 : 1;
+  }
+  ```
+
+### 6. AdMob 테스트 ID 사용
+- **현재**: `gallery_screen.dart` & `media_viewer.dart`에서 테스트 ID 사용.
+  ```dart
+  adUnitId: 'ca-app-pub-3940256099942544/9214589741',  // 테스트 ID
+  ```
+- **주의**: 프로덕션 배포 전 실제 AdMob ID로 변경 필요.
+
+### 7. 권한 요청 UX 개선
+- **현재**: 비디오 녹화 중 마이크 권한 재요청.
+  ```dart
+  if (_captureMode == CaptureMode.video) {
+    final micStatus = await Permission.microphone.status;
+    if (!micStatus.isGranted) {
+      // 미리 앱 시작 시 요청하는 게 나음
+    }
+  }
+  ```
+- **제안**: `initState`에서 사전 권한 요청.
+
+### 8. 파일 시스템 경로 최적화
+- **현재**: 반복되는 경로 생성.
+  ```dart
+  final Directory appDir = await getApplicationDocumentsDirectory();
+  final Directory workDir = Directory('${appDir.path}/flutter_camera_work');
+  ```
+- **개선안**:
+  ```dart
+  const String WORK_DIR_NAME = 'flutter_camera_work';
+
+  Future<Directory> getWorkDirectory() async {
+    final appDir = await getApplicationDocumentsDirectory();
+    final workDir = Directory('${appDir.path}/$WORK_DIR_NAME');
+    if (!await workDir.exists()) {
+      await workDir.create(recursive: true);
+    }
+    return workDir;
+  }
+  ```
+
+### 9. 비디오 녹화 상태 관리
+- **현재**: 녹화 중 앱 백그라운드 전환 시 처리 필요.
+  ```dart
+  Future<void> _stopRecording() async {
+    if (!_isRecording) return;
+    // 앱이 일시 중지되면?
+  }
+  ```
+- **제안**: 앱 라이프사이클 리스너 추가.
+  ```dart
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.paused && _isRecording) {
+      _stopRecording();
+    }
+  }
+  ```
+
+### 10. 성능: 큰 갤러리 스크롤
+- **현재**: 모든 파일을 한 번에 로드.
+  ```dart
+  final files = await workDir.list().where(...).toList();
+  ```
+- **개선안**: 페이지네이션 또는 가상 스크롤.
+  ```dart
+  ListView.builder(
+    itemCount: _groupKeys.length,
+    itemBuilder: (context, gi) {
+      return _buildGroupLazy(_groupKeys[gi]);
+    }
+  )
+  ```
