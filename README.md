@@ -18,6 +18,10 @@
   - 썸네일 생성/디스크 캐시 구현 및 중복 생성 방지 로직 추가
   - `lib/gallery_screen.dart`를 날짜(월/일)별로 그룹화하고, 섹션 헤더(Sticky) 및 '오늘/어제' 상대 날짜 레이블 추가
   - Sliver 기반 레이아웃으로 섹션 헤더 고정(sticky header) 구현 및 관련 렌더 예외를 수정
+  - 빌드 오류 수정: `video_thumbnail` 패키지의 Java 코드 멀티 캐치 문제 해결 및 IOException 처리 추가
+  - AndroidManifest.xml에 저장소 및 외부 저장소 권한 추가
+  - VideoThumbnailPlugin.java의 setDataSource 메서드 개선 (Uri 기반 파일 경로 지원)
+  - OnBackInvokedCallback 활성화로 백 버튼 경고 해결
 
 ## 해결된 문제
 
@@ -25,6 +29,7 @@
 2. 썸네일 생성 및 디스크 캐시 로직 완료.
 3. 갤러리 날짜별 그룹화 및 섹션 헤더 고정 완료.
 4. Sliver 기반 레이아웃 렌더 예외 수정 완료.
+5. 빌드 오류 해결: `video_thumbnail` 패키지 Java 코드 수정 및 권한 추가.
 
 ## 남은 작업
 
@@ -37,6 +42,9 @@
 3. 성능/UX 개선
 	- Sliver 성능 개선(대량 이미지에서의 스크롤 최적화), 이미지 페이징 또는 썸네일 캐시 정책 개선
 	- '오늘/어제' 라벨을 지역화(Intl)하고 sticky header 스타일 다듬기
+4. 로그 관련 문제 해결
+	- `ImageReader_JNI: Unable to acquire a buffer item` 오류 해결 (maxImages 제한 증가 또는 버퍼 해제)
+	- `Surface.release` 경고 해결 (Surface 객체 적절한 해제)
 
 ## GitHub 반영
 
