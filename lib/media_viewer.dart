@@ -77,24 +77,24 @@ class _MediaViewerState extends State<MediaViewer> {
       final thumbExtent = _thumbSize + 8.0;
       final scrollOffset = _thumbScrollController.offset;
       final screenWidth = MediaQuery.of(context).size.width;
-      
+
       // 화면 중앙의 스크롤 좌표
       final centerPosition = scrollOffset + (screenWidth / 2);
-      
+
       // 가장 가까운 썸네일 인덱스 찾기
       int nearestIndex = 0;
       double minDistance = double.infinity;
-      
+
       for (int i = 0; i < widget.mediaFiles.length; i++) {
         final thumbCenter = (i * thumbExtent) + (_thumbSize / 2);
         final distance = (thumbCenter - centerPosition).abs();
-        
+
         if (distance < minDistance) {
           minDistance = distance;
           nearestIndex = i;
         }
       }
-      
+
       // 자동으로 가장 가까운 썸네일로 스냅
       if (nearestIndex != _currentIndex) {
         setState(() {
@@ -183,22 +183,21 @@ class _MediaViewerState extends State<MediaViewer> {
   void _scrollThumbToCenter(int index) {
     if (!_thumbScrollController.hasClients) return;
 
-    final thumbWidth = _thumbSize + 8.0; // itemExtent
-    final screenWidth = MediaQuery.of(context).size.width;
-
-    // 선택된 썸네일의 좌측 시작 위치
-    final thumbLeft = index * thumbWidth;
-    // 선택된 썸네일의 테두리 중심 위치 (썸네일 중심 + 테두리 반폭)
-    final thumbCenter = thumbLeft + (_thumbSize / 2) + 1.5; // 테두리 너비 3의 절반
-    // 스크롤 위치: 테두리 중심이 화면 중앙에 오도록 조정
-    final scrollPosition = thumbCenter - (screenWidth / 2);
+    final thumbExtent = _thumbSize + 8.0;
+    
+    // 선택된 썸네일의 중심 위치 (padding을 고려한 절대 좌표)
+    final padding = (MediaQuery.of(context).size.width / 2) - (_thumbSize / 2) - 4;
+    final thumbCenterInList = index * thumbExtent + (_thumbSize / 2);
+    
+    // 스크롤 오프셋 계산: 선택된 썸네일의 중심이 화면 중앙에 오도록 설정
+    final scrollOffset = thumbCenterInList - padding - (MediaQuery.of(context).size.width / 2);
 
     // 스크롤 범위를 동적으로 계산
     final minScrollExtent = _thumbScrollController.position.minScrollExtent;
     final maxScrollExtent = _thumbScrollController.position.maxScrollExtent;
 
-    // 첫 번째와 마지막 썸네일의 경우 테두리가 중앙에 위치하도록 클램핑
-    final clampedScrollPosition = scrollPosition.clamp(
+    // 스크롤 위치를 범위 내로 클램핑
+    final clampedScrollPosition = scrollOffset.clamp(
       minScrollExtent,
       maxScrollExtent,
     );
@@ -392,11 +391,7 @@ class _MediaViewerState extends State<MediaViewer> {
                         itemCount: widget.mediaFiles.length,
                         physics: const BouncingScrollPhysics(),
                         padding: EdgeInsets.symmetric(
-                          horizontal:
-                              (MediaQuery.of(context).size.width -
-                                  _thumbSize -
-                                  6) /
-                              2,
+                          horizontal: (MediaQuery.of(context).size.width / 2) - (_thumbSize / 2) - 4,
                         ),
                         itemExtent: _thumbSize + 8, // 각 항목의 정확한 너비 설정
                         itemBuilder: (context, idx) {
@@ -445,7 +440,9 @@ class _MediaViewerState extends State<MediaViewer> {
                               child: Container(
                                 width: _thumbSize,
                                 height: _thumbSize,
-                                margin: const EdgeInsets.symmetric(horizontal: 4),
+                                margin: const EdgeInsets.symmetric(
+                                  horizontal: 4,
+                                ),
                                 decoration: BoxDecoration(
                                   border: Border.all(
                                     color: idx == _currentIndex
@@ -465,7 +462,9 @@ class _MediaViewerState extends State<MediaViewer> {
                                     // 터치 피드백 오버레이
                                     if (_selectedThumbIndex == idx)
                                       Container(
-                                        color: Colors.white.withValues(alpha: 0.2),
+                                        color: Colors.white.withValues(
+                                          alpha: 0.2,
+                                        ),
                                       ),
                                   ],
                                 ),
