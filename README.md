@@ -23,6 +23,17 @@
   - VideoThumbnailPlugin.java의 setDataSource 메서드 개선 (Uri 기반 파일 경로 지원)
   - OnBackInvokedCallback 활성화로 백 버튼 경고 해결
 
+- **최근 (현재 세션)**:
+  - **카메라 초기화 오류 해결**: `initState`에서 `availableCameras()` 호출 추가
+    - "Error initializing camera: Null check operator used on a null value" 오류 해결
+    - "No cameras available" 상태 제대로 처리
+  - **MissingPluginException 해결**: 시스템 사운드 상태 확인 제거
+    - "Failed to get sound state: MissingPluginException" 오류 해결
+  - **썸네일 스크롤링 중앙 정렬**: `_scrollThumbToCenter` 메서드 개선
+    - 선택된 썸네일의 흰색 테두리가 항상 화면 정중앙에 위치
+    - 첫 번째 사진은 정중앙에서 시작, 마지막 사진은 정중앙에서 멈춤
+    - 이미지 넘김 및 썸네일 선택 시 일관된 스크롤 동작 구현
+
 ## 해결된 문제
 
 1. 비디오 초기화 동시성 제어 완료.
@@ -30,6 +41,9 @@
 3. 갤러리 날짜별 그룹화 및 섹션 헤더 고정 완료.
 4. Sliver 기반 레이아웃 렌더 예외 수정 완료.
 5. 빌드 오류 해결: `video_thumbnail` 패키지 Java 코드 수정 및 권한 추가.
+6. **카메라 초기화 오류 해결**: 카메라 목록 조회 및 null 체크 추가.
+7. **MissingPluginException 해결**: 시스템 사운드 상태 확인 제거.
+8. **썸네일 스크롤링 중앙 정렬**: 선택된 썸네일이 항상 화면 중앙에 위치하도록 구현.
 
 ## 남은 작업
 
@@ -45,6 +59,10 @@
 4. 로그 관련 문제 해결
 	- `ImageReader_JNI: Unable to acquire a buffer item` 오류 해결 (maxImages 제한 증가 또는 버퍼 해제)
 	- `Surface.release` 경고 해결 (Surface 객체 적절한 해제)
+5. **추가 테스트 및 검증**
+	- 카메라 초기화 오류가 완전히 해결되었는지 확인
+	- 썸네일 스크롤링이 모든 기기에서 일관되게 작동하는지 테스트
+	- MissingPluginException이 재발하지 않는지 모니터링
 
 ## GitHub 반영
 

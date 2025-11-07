@@ -27,6 +27,7 @@ class _MainAppState extends State<MainApp> {
   void initState() {
     super.initState();
     _getActivityType();
+    // Removed system sound check to avoid MissingPluginException
   }
 
   Future<void> _getActivityType() async {
@@ -36,13 +37,15 @@ class _MainAppState extends State<MainApp> {
         _activityType = result;
       });
     } on PlatformException catch (e) {
-      print("Failed to get activity type: '${e.message}'.");
+      debugPrint("Failed to get activity type: '${e.message}'.");
     }
   }
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
+      debugShowCheckedModeBanner: false,
+      theme: ThemeData.dark(),
       home: _activityType == 'camera'
           ? const CameraScreen()
           : const GalleryScreen(),
