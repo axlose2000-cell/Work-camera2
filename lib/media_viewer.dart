@@ -34,6 +34,7 @@ class _MediaViewerState extends State<MediaViewer> {
   late int _currentIndex;
   // thumbnail carousel uses ScrollController now
   final double _thumbSize = 64.0;
+  int? _selectedThumbIndex; // 터치 피드백용
   final Map<String, String> _thumbCache = {}; // sourcePath -> thumbnailPath
   final Map<String, Future<String?>?> _thumbGenerationFutures = {};
   final Map<int, VideoPlayerController> _videoControllers = {};
@@ -57,6 +58,8 @@ class _MediaViewerState extends State<MediaViewer> {
     _currentIndex = widget.initialIndex.clamp(0, maxIndex).toInt();
     _pageController = PageController(initialPage: _currentIndex);
     _thumbScrollController = ScrollController();
+    // 스크롤 스냅 기능: 스크롤이 멈춘 후 가장 가까운 썸네일에 자동 스냅
+    _thumbScrollController.addListener(_onThumbScroll);
     // prefetch thumbnails for improved UX
     prefetchThumbnails();
     // initialize banner ad
@@ -65,6 +68,46 @@ class _MediaViewerState extends State<MediaViewer> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _scrollThumbToCenter(_currentIndex);
     });
+  }
+
+  void _onThumbScroll() {
+    // 사용자가 빠르게 스크롤하지 않을 때만 스냅 처리
+    if (!_thumbScrollController.position.isScrollingNotifier.value) {
+      // 현재 스크롤 위치에서 가장 가까운 썸네일 찾기
+      final thumbExtent = _thumbSize + 8.0;
+      final scrollOffset = _thumbScrollController.offset;
+      final screenWidth = MediaQuery.of(context).size.width;
+      
+      // 화면 중앙의 스크롤 좌표
+      final centerPosition = scrollOffset + (screenWidth / 2);
+      
+      // 가장 가까운 썸네일 인덱스 찾기
+      int nearestIndex = 0;
+      double minDistance = double.infinity;
+      
+      for (int i = 0; i < widget.mediaFiles.length; i++) {
+        final thumbCenter = (i * thumbExtent) + (_thumbSize / 2);
+        final distance = (thumbCenter - centerPosition).abs();
+        
+        if (distance < minDistance) {
+          minDistance = distance;
+          nearestIndex = i;
+        }
+      }
+      
+      // 자동으로 가장 가까운 썸네일로 스냅
+      if (nearestIndex != _currentIndex) {
+        setState(() {
+          _currentIndex = nearestIndex;
+        });
+        _pageController.animateToPage(
+          nearestIndex,
+          duration: const Duration(milliseconds: 300),
+          curve: Curves.easeInOut,
+        );
+        _scrollThumbToCenter(nearestIndex);
+      }
+    }
   }
 
   void _loadAd() {
@@ -378,6 +421,7 @@ class _MediaViewerState extends State<MediaViewer> {
                             onTap: () {
                               setState(() {
                                 _currentIndex = idx;
+                                _selectedThumbIndex = null; // 터치 후 피드백 해제
                               });
                               _pageController.animateToPage(
                                 idx,
@@ -386,20 +430,46 @@ class _MediaViewerState extends State<MediaViewer> {
                               );
                               _scrollThumbToCenter(idx);
                             },
-                            child: Container(
-                              width: _thumbSize,
-                              height: _thumbSize,
-                              margin: const EdgeInsets.symmetric(horizontal: 4),
-                              decoration: BoxDecoration(
-                                border: Border.all(
-                                  color: idx == _currentIndex
-                                      ? Colors.white
-                                      : Colors.white24,
-                                  width: idx == _currentIndex ? 3 : 1,
+                            onTapDown: (_) {
+                              setState(() {
+                                _selectedThumbIndex = idx; // 터치 시작
+                              });
+                            },
+                            onTapUp: (_) {
+                              setState(() {
+                                _selectedThumbIndex = null; // 터치 종료
+                              });
+                            },
+                            child: ClipRRect(
+                              borderRadius: BorderRadius.circular(8),
+                              child: Container(
+                                width: _thumbSize,
+                                height: _thumbSize,
+                                margin: const EdgeInsets.symmetric(horizontal: 4),
+                                decoration: BoxDecoration(
+                                  border: Border.all(
+                                    color: idx == _currentIndex
+                                        ? Colors.white
+                                        : Colors.white24,
+                                    width: idx == _currentIndex ? 3 : 1,
+                                  ),
+                                  borderRadius: BorderRadius.circular(8),
+                                  color: _selectedThumbIndex == idx
+                                      ? Colors.white.withValues(alpha: 0.1)
+                                      : Colors.transparent,
                                 ),
-                                borderRadius: BorderRadius.circular(8),
+                                child: Stack(
+                                  fit: StackFit.expand,
+                                  children: [
+                                    thumbChild,
+                                    // 터치 피드백 오버레이
+                                    if (_selectedThumbIndex == idx)
+                                      Container(
+                                        color: Colors.white.withValues(alpha: 0.2),
+                                      ),
+                                  ],
+                                ),
                               ),
-                              child: thumbChild,
                             ),
                           );
                         },
@@ -509,6 +579,13 @@ class _MediaViewerState extends State<MediaViewer> {
 
   @override
   void dispose() {
+    try {
+      // 스크롤 리스너 제거
+      _thumbScrollController.removeListener(_onThumbScroll);
+    } catch (e) {
+      debugPrint('Error removing scroll listener: $e');
+    }
+
     try {
       // Dispose all video controllers to prevent memory leaks
       for (final controller in _videoControllers.values) {
