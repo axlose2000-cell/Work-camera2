@@ -1,4 +1,16 @@
+
 # work_camera_gallery
+
+## 진행상황 요약 (2025-11-09)
+
+- 프로젝트 구조 및 주요 폴더/파일 정리 완료
+- Flutter/Dart 환경 세팅 및 의존성 설치 완료
+- 주요 화면(`camera_screen.dart`, `gallery_screen.dart`, `media_viewer.dart`, `video_player_screen.dart`) 파일 생성 및 기본 코드 작성
+- Android/iOS/Web 등 멀티플랫폼 폴더 구조 확인
+- 테스트 코드(`test/gallery_screen_test.dart`) 작성 시작
+- `.github/copilot-instructions.md` 파일 존재 확인
+- README 및 문서화 진행 중
+
 
 업무용 사진/갤러리 분리 Flutter 앱
 
@@ -281,3 +293,12 @@ git push origin master
 
 1. 광고가 모든 디바이스에서 올바르게 표시되는지 테스트.
 2. 추가적인 UI/UX 개선 작업.
+  
+  - **2025-11-08(오늘):**
+    - 썸네일 스트립에서 선택된 썸네일(하얀 테두리)이 항상 좌측에서 3번째 위치에 고정되도록 padding/offset 계산 로직 수정 시도
+    - 실제로는 스크롤 시 테두리가 움직이고, 화면 밖으로 나가는 현상 지속
+    - 내일 추가 분석 및 디버깅 예정 (오늘은 기록만 남기고 중단)
+5. 썸네일 스트립 하얀 테두리 위치 고정 이슈
+  - 선택된 썸네일의 하얀 테두리가 항상 좌측에서 3번째 위치에 고정되어야 하나, 스크롤 시 테두리가 움직이고 화면 밖으로 나가는 문제 지속
+  - padding/offset 계산식 추가 점검 및 ListView/스크롤 동작 로직 재설계 필요
+  - 내일 추가 분석 및 개선 예정
