@@ -1,5 +1,7 @@
 package com.example.work_camera_gallery
 
+import android.content.Context
+import android.media.AudioManager
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
@@ -12,6 +14,10 @@ class MainActivity : FlutterActivity() {
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, CHANNEL).setMethodCallHandler { call, result ->
             if (call.method == "getActivityType") {
                 result.success("camera")
+            } else if (call.method == "isSoundOn") {
+                val audioManager = getSystemService(Context.AUDIO_SERVICE) as AudioManager
+                val isSoundOn = audioManager.ringerMode == AudioManager.RINGER_MODE_NORMAL
+                result.success(isSoundOn)
             } else {
                 result.notImplemented()
             }
