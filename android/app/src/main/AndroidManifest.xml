@@ -7,7 +7,7 @@
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
     <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" android:maxSdkVersion="28" />
     <application
-        android:label="work_camera_gallery"
+    android:label="업무카메라"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher"
         android:enableOnBackInvokedCallback="true">
@@ -17,7 +17,7 @@
         <activity
             android:name=".MainActivity"
             android:exported="true"
-            android:label="업카"
+            android:label="업무카메라"
             android:launchMode="singleTop"
             android:taskAffinity=""
             android:theme="@style/LaunchTheme"
@@ -41,7 +41,7 @@
             android:name=".GalleryActivity"
             android:exported="true"
             android:icon="@mipmap/ic_gallery"
-            android:label="업갤"
+            android:label="업무갤러리"
             android:theme="@style/LaunchTheme"
             android:configChanges="orientation|keyboardHidden|keyboard|screenSize|smallestScreenSize|locale|layoutDirection|fontScale|screenLayout|density|uiMode"
             android:hardwareAccelerated="true"
