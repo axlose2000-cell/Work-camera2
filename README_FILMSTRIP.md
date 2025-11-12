@@ -1,6 +1,8 @@
+<!-- markdownlint-disable MD013 -->
 # 필름스트립 UI 및 중앙 스냅/포커스 스케일링 구현 내역 (2025-11-10)
 
 ## 핵심 변경점 요약
+
 - 하단 썸네일(필름스트립) UI를 PageView 기반으로 전환
 - 썸네일 리스트에 PageController 도입, 중앙 스냅 및 포커스 스케일링 효과 구현
 - 기존 ScrollController 기반 썸네일 리스트 코드 제거
@@ -12,6 +14,7 @@
 ## 주요 코드 변경 내역
 
 ### 1. PageController 추가 및 썸네일 영역 수정
+
 - 하단 썸네일 리스트를 위한 PageController(`_thumbPageController`) 추가
 - 썸네일 영역을 `PageView.builder`로 변경하여 중앙 스냅 및 포커스 스케일링 효과 구현
 - 기존 `ScrollController` 기반 썸네일 리스트 코드 삭제
@@ -24,6 +27,7 @@ late int _currentIndex;
 ```
 
 ### 2. initState 내부 수정
+
 - 썸네일용 PageController 초기화
 - viewportFraction을 0.2로 설정하여 한 화면에 약 5개의 썸네일이 보이도록 조정
 
@@ -49,6 +53,7 @@ void initState() {
 ```
 
 ### 3. dispose 내부 수정
+
 - 컨트롤러 해제 코드 보강
 
 ```dart
@@ -70,6 +75,7 @@ void dispose() {
 ---
 
 ## 구현 효과 및 장점
+
 - 썸네일 리스트가 PageView 기반으로 동작하여 자연스러운 중앙 스냅 효과 제공
 - 현재 선택된 썸네일에 스케일링(포커스) 효과를 적용해 UX 향상
 - 메인 뷰어와 썸네일 리스트의 인덱스가 항상 동기화되어 일관된 사용자 경험 제공
@@ -78,6 +84,7 @@ void dispose() {
 ---
 
 ## 참고 사항
+
 - viewportFraction 값은 썸네일 크기와 화면 너비에 따라 조정 필요
 - 썸네일 스케일링 효과는 PageView의 onPageChanged 및 PageController.page 값을 활용해 구현
 - 전체 구현 예시는 `lib/media_viewer.dart` 참고
@@ -85,9 +92,11 @@ void dispose() {
 ---
 
 ## 변경 일자
+
 - 2025-11-10
 
 ## 담당자
+
 - axlose2000-cell
 
 ---
@@ -153,3 +162,4 @@ onTap: () {
 ## 결론
 
 2025-11-10 기준, 본 프로젝트의 미디어 뷰어(필름스트립, 슬라이드, 확대/축소, 비디오 UX, 전체 화면 토글, 메모리/제스처/오타 등)는 갤럭시 폴드5 갤러리 앱과 동등한 수준의 완성도와 안정성을 달성하였음. 추가 개선 없이 바로 배포 가능한 상태임.
+<!-- markdownlint-enable MD013 -->

@@ -1,17 +1,20 @@
-import 'dart:io';
 import 'dart:async';
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:photo_view/photo_view.dart';
 import 'package:video_player/video_player.dart';
+import 'package:photo_manager/photo_manager.dart';
+import 'package:photo_manager_image_provider/photo_manager_image_provider.dart';
+
 import 'package:google_mobile_ads/google_mobile_ads.dart';
 
 class MediaViewer extends StatefulWidget {
-  final List<File> mediaFiles;
+  final List<AssetEntity> mediaAssets;
   final int initialIndex;
 
   const MediaViewer({
     super.key,
-    required this.mediaFiles,
+    required this.mediaAssets,
     this.initialIndex = 0,
   });
 
@@ -27,9 +30,6 @@ class _MediaViewerState extends State<MediaViewer> {
   // 💡 UI 표시 상태 관리 변수 추가
   bool _isUIVisible = true;
 
-  // 💡 현재 이미지 확대 상태 (PageView 스크롤 비활성화 제어용)
-  bool _isImageZoomed = false;
-
   static const double _thumbSize = 60.0;
   static const double _thumbSpacing = 8.0;
 
@@ -39,12 +39,15 @@ class _MediaViewerState extends State<MediaViewer> {
   late BannerAd _bannerAd;
   bool _isAdLoaded = false;
 
+  // 💡 NEW: 파일 비동기 로딩을 위한 맵 추가
+  final Map<int, Future<File?>> _fileFutures = {};
+
   @override
   void initState() {
     super.initState();
-    final maxIndex = widget.mediaFiles.isEmpty
+    final maxIndex = widget.mediaAssets.isEmpty
         ? 0
-        : widget.mediaFiles.length - 1;
+        : widget.mediaAssets.length - 1;
     _currentIndex = widget.initialIndex.clamp(0, maxIndex).toInt();
 
     _pageController = PageController(
@@ -67,14 +70,16 @@ class _MediaViewerState extends State<MediaViewer> {
   void _loadAd() {
     try {
       _bannerAd = BannerAd(
+        size: AdSize.banner,
         adUnitId: 'ca-app-pub-3940256099942544/6300978111',
         request: const AdRequest(),
-        size: AdSize.banner,
         listener: BannerAdListener(
           onAdLoaded: (ad) {
-            setState(() {
-              _isAdLoaded = true;
-            });
+            if (!_isAdLoaded) {
+              setState(() {
+                _isAdLoaded = true;
+              });
+            }
           },
           onAdFailedToLoad: (ad, error) {
             ad.dispose();
@@ -83,15 +88,6 @@ class _MediaViewerState extends State<MediaViewer> {
       )..load();
     } catch (e) {
       debugPrint('Ad loading error: $e');
-    }
-  }
-
-  // 💡 NEW: 자식으로부터 확대 상태를 전달받아 업데이트하는 함수
-  void _handleScaleChange(bool isZoomed) {
-    if (_isImageZoomed != isZoomed) {
-      setState(() {
-        _isImageZoomed = isZoomed;
-      });
     }
   }
 
@@ -114,6 +110,42 @@ class _MediaViewerState extends State<MediaViewer> {
     return null;
   }
 
+  // 💡 NEW: 미리 파일 로딩 예약
+  void _preLoadFile(int index) {
+    // 기존 컨트롤러 정리
+    final keysToRemove = <int>[];
+    _videoControllers.forEach((key, controller) {
+      if ((key - index).abs() > 2) {
+        controller.dispose();
+        keysToRemove.add(key);
+      }
+    });
+
+    for (final key in keysToRemove) {
+      _videoControllers.remove(key);
+    }
+
+    if (!_fileFutures.containsKey(index)) {
+      final asset = widget.mediaAssets[index];
+      _fileFutures[index] = asset.file;
+    }
+  }
+
+  // 💡 NEW: 비디오 플레이어 초기화
+  Future<void> _initializeVideoController(int index) async {
+    final file = await _fileFutures[index];
+    if (file != null && !_videoControllers.containsKey(index)) {
+      final controller = VideoPlayerController.file(file);
+      await controller.initialize();
+      if (mounted) {
+        setState(() {
+          _videoControllers[index] = controller;
+          _mutedStates[index] = false;
+        });
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -131,50 +163,36 @@ class _MediaViewerState extends State<MediaViewer> {
               // 💡 메인 뷰어 PageView.builder
               PageView.builder(
                 controller: _pageController,
-                itemCount: widget.mediaFiles.length,
-                // 💡 NEW: _isImageZoomed 상태에 따라 스크롤을 제어
-                physics: _isImageZoomed
-                    ? const NeverScrollableScrollPhysics() // 확대 시: 페이지 전환 비활성화 (패닝만 가능)
-                    : const AlwaysScrollableScrollPhysics(), // 축소 시: 페이지 전환 활성화
-                onPageChanged: (index) {
-                  setState(() {
-                    _currentIndex = index;
-                    _isImageZoomed = false; // 💡 NEW: 페이지 넘어가면 확대 상태 초기화
-                  });
-                  // 💡 메인 뷰어가 변경되면 썸네일 리스트도 동기화
+                itemCount: widget.mediaAssets.length,
+                onPageChanged: (index) async {
+                  _currentIndex = index;
                   _thumbPageController.animateToPage(
                     index,
                     duration: const Duration(milliseconds: 300),
                     curve: Curves.easeInOut,
                   );
-                  // 💡 새 페이지의 비디오 초기화
-                  _initializeVideoController(index);
+                  _preLoadFile(index);
+                  _preLoadFile(index - 1);
+                  _preLoadFile(index + 1);
+                  await _initializeVideoController(index);
+                  await _initializeVideoController(index - 1);
+                  await _initializeVideoController(index + 1);
                 },
                 itemBuilder: (context, index) {
-                  final file = widget.mediaFiles[index];
-                  final isVideo = file.path.toLowerCase().endsWith('.mp4');
-
-                  // 💡 _MediaPage 위젯 사용으로 이미지/비디오 로직 분리
-                  return _MediaPage(
-                    file: file,
-                    isVideo: isVideo,
-                    index: index,
-                    isUIVisible: _isUIVisible, // 💡 UI 표시 상태 전달
-                    onScaleChanged: _handleScaleChange, // 💡 NEW: 콜백 전달
-                  );
+                  return _buildMedia(index);
                 },
               ),
 
               // 💡 상단 헤더: _isUIVisible에 따라 표시/숨김
-              AnimatedOpacity(
-                opacity: _isUIVisible ? 1.0 : 0.0,
-                duration: const Duration(milliseconds: 300),
-                child: IgnorePointer(
-                  ignoring: !_isUIVisible,
-                  child: Positioned(
-                    top: 0,
-                    left: 0,
-                    right: 0,
+              Positioned(
+                top: 0,
+                left: 0,
+                right: 0,
+                child: AnimatedOpacity(
+                  opacity: _isUIVisible ? 1.0 : 0.0,
+                  duration: const Duration(milliseconds: 300),
+                  child: IgnorePointer(
+                    ignoring: !_isUIVisible,
                     child: Container(
                       color: Colors.black.withOpacity(0.5),
                       padding: const EdgeInsets.symmetric(
@@ -193,7 +211,7 @@ class _MediaViewerState extends State<MediaViewer> {
                           Expanded(
                             child: Center(
                               child: Text(
-                                '${_currentIndex + 1} / ${widget.mediaFiles.length}',
+                                '${_currentIndex + 1} / ${widget.mediaAssets.length}',
                                 style: const TextStyle(
                                   color: Colors.white,
                                   fontSize: 16,
@@ -208,7 +226,7 @@ class _MediaViewerState extends State<MediaViewer> {
                               color: Colors.white,
                             ),
                             onPressed: () async {
-                              final file = widget.mediaFiles[_currentIndex];
+                              final asset = widget.mediaAssets[_currentIndex];
                               final confirm = await showDialog<bool>(
                                 context: context,
                                 builder: (ctx) => AlertDialog(
@@ -230,12 +248,12 @@ class _MediaViewerState extends State<MediaViewer> {
                               );
                               if (confirm == true && mounted) {
                                 try {
-                                  await file.delete();
+                                  await PhotoManager.editor.deleteWithIds([
+                                    asset.id,
+                                  ]);
                                   if (mounted) {
                                     // ignore: use_build_context_synchronously
-                                    Navigator.of(
-                                      context,
-                                    ).pop<String>(file.path);
+                                    Navigator.of(context).pop<String>(asset.id);
                                   }
                                 } catch (e) {
                                   debugPrint('Delete error: $e');
@@ -306,7 +324,7 @@ class _MediaViewerState extends State<MediaViewer> {
                             height: _thumbSize,
                             child: PageView.builder(
                               controller: _thumbPageController,
-                              itemCount: widget.mediaFiles.length,
+                              itemCount: widget.mediaAssets.length,
                               onPageChanged: (index) {
                                 setState(() {
                                   _currentIndex = index;
@@ -358,18 +376,30 @@ class _MediaViewerState extends State<MediaViewer> {
                                             fit: StackFit.expand,
                                             children: [
                                               // 💡 이미지 레이어
-                                              Container(
-                                                decoration: BoxDecoration(
-                                                  borderRadius:
-                                                      BorderRadius.circular(8),
-                                                  image: DecorationImage(
-                                                    image: FileImage(
-                                                      widget.mediaFiles[index],
+                                              // 썸네일 최적화: 캐시 우선, 이미지 리사이즈 적용
+                                              () {
+                                                final asset =
+                                                    widget.mediaAssets[index];
+                                                return Container(
+                                                  decoration: BoxDecoration(
+                                                    borderRadius:
+                                                        BorderRadius.circular(
+                                                          8,
+                                                        ),
+                                                    image: DecorationImage(
+                                                      image: AssetEntityImageProvider(
+                                                        asset,
+                                                        thumbnailSize:
+                                                            const ThumbnailSize(
+                                                              120,
+                                                              120,
+                                                            ),
+                                                      ),
+                                                      fit: BoxFit.cover,
                                                     ),
-                                                    fit: BoxFit.cover,
                                                   ),
-                                                ),
-                                              ),
+                                                );
+                                              }(),
                                               // 💡 선택 테두리 레이어
                                               Container(
                                                 decoration: BoxDecoration(
@@ -385,9 +415,10 @@ class _MediaViewerState extends State<MediaViewer> {
                                                 ),
                                               ),
                                               // 💡 비디오 재생 아이콘
-                                              if (widget.mediaFiles[index].path
-                                                  .toLowerCase()
-                                                  .endsWith('.mp4'))
+                                              if (widget
+                                                      .mediaAssets[index]
+                                                      .type ==
+                                                  AssetType.video)
                                                 Center(
                                                   child: Container(
                                                     decoration: BoxDecoration(
@@ -499,52 +530,71 @@ class _MediaViewerState extends State<MediaViewer> {
     super.dispose();
   }
 
-  Future<void> _initializeVideoController(int index) async {
-    final file = widget.mediaFiles[index];
-    if (!file.path.toLowerCase().endsWith('.mp4')) {
-      return;
+  // 💡 NEW: 사진 뷰 빌더
+  Widget _buildPhotoView(File file) {
+    return PhotoView.customChild(
+      child: Image.file(file, fit: BoxFit.contain),
+      onScaleEnd: (context, details, controllerValue) {
+        // ... (기존 로직 유지)
+      },
+    );
+  }
+
+  // 💡 NEW: 미디어 빌더
+  Widget _buildMedia(int index) {
+    // 1. File 로딩이 예약되지 않았으면 예약
+    _preLoadFile(index);
+
+    // 2. FutureBuilder로 File 로딩 대기
+    return FutureBuilder<File?>(
+      future: _fileFutures[index],
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.done &&
+            snapshot.hasData) {
+          final file = snapshot.data!;
+
+          if (widget.mediaAssets[index].type == AssetType.image) {
+            // 이미지
+            return _buildPhotoView(file);
+          } else if (widget.mediaAssets[index].type == AssetType.video) {
+            // 비디오
+            return _buildVideoPlayer(index, file);
+          }
+        } else if (snapshot.hasError) {
+          return const Center(child: Text('미디어를 로드할 수 없습니다.'));
+        }
+
+        // 로딩 중
+        return Container(
+          color: Colors.black,
+          child: const Center(child: CircularProgressIndicator()),
+        );
+      },
+    );
+  }
+
+  // 💡 NEW: 비디오 플레이어 빌더
+  Widget _buildVideoPlayer(int index, File file) {
+    final controller = _videoControllers[index];
+    if (controller?.value.isInitialized == true) {
+      return _VideoPlayerControls(controller: controller!);
     }
-
-    if (_videoControllers.containsKey(index)) {
-      return;
-    }
-
-    final controller = VideoPlayerController.file(file);
-    try {
-      await controller.initialize().timeout(
-        const Duration(seconds: 30),
-        onTimeout: () =>
-            throw TimeoutException('Video initialization timed out'),
-      );
-
-      // 💡 비디오 반복 재생 설정
-      controller.setLooping(true);
-
-      if (mounted) {
-        setState(() {
-          _videoControllers[index] = controller;
-        });
-      }
-    } catch (e) {
-      debugPrint('Error initializing video: $e');
-      try {
-        controller.dispose();
-      } catch (_) {}
-    }
+    return Container(
+      color: Colors.black,
+      child: const Center(child: CircularProgressIndicator()),
+    );
   }
 }
 
 class _MediaPage extends StatefulWidget {
-  final File file;
-  final bool isVideo;
+  final AssetEntity asset;
   final int index;
   final bool isUIVisible; // 💡 새로운 속성 추가
   final ValueChanged<bool> onScaleChanged; // 💡 NEW: 확대 상태 변경을 위한 콜백 추가
 
   const _MediaPage({
     Key? key,
-    required this.file,
-    required this.isVideo,
+    required this.asset,
     required this.index,
     required this.isUIVisible, // 💡 생성자에 추가
     required this.onScaleChanged, // 💡 생성자에 추가
@@ -564,7 +614,7 @@ class _MediaPageState extends State<_MediaPage> {
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    if (!widget.isVideo) return;
+    if (widget.asset.type != AssetType.video) return;
     try {
       final parentState = context.findAncestorStateOfType<_MediaViewerState>();
       final parentCtrl = parentState?._videoControllers[widget.index];
@@ -589,14 +639,14 @@ class _MediaPageState extends State<_MediaPage> {
 
   @override
   Widget build(BuildContext context) {
-    if (!widget.isVideo) {
+    if (widget.asset.type == AssetType.image) {
       return Center(
         child: PhotoView(
-          imageProvider: FileImage(widget.file),
+          imageProvider: AssetEntityImageProvider(widget.asset),
           minScale: PhotoViewComputedScale.contained * 0.8,
           maxScale: PhotoViewComputedScale.covered * 2,
           initialScale: PhotoViewComputedScale.contained,
-          heroAttributes: PhotoViewHeroAttributes(tag: widget.file.path),
+          heroAttributes: PhotoViewHeroAttributes(tag: widget.asset.id),
           // 💡 NEW: 확대 상태가 변경될 때마다 부모에게 알림
           scaleStateChangedCallback: (state) {
             // 초기 상태가 아니면 확대된 것으로 간주
@@ -605,85 +655,158 @@ class _MediaPageState extends State<_MediaPage> {
           },
         ),
       );
-    }
-
-    return GestureDetector(
-      onTap: () {
-        if (_controller != null && _controller!.value.isInitialized) {
-          if (_controller!.value.isPlaying) {
-            _controller!.pause();
-          } else {
-            _controller!.play();
+    } else if (widget.asset.type == AssetType.video) {
+      return GestureDetector(
+        onTap: () {
+          if (_controller != null && _controller!.value.isInitialized) {
+            if (_controller!.value.isPlaying) {
+              _controller!.pause();
+            } else {
+              _controller!.play();
+            }
           }
-        }
 
-        // 💡 탭할 때마다 아이콘을 잠시 보여주고 타이머를 시작
-        if (mounted) {
-          setState(() {
-            _showVideoControls = true;
-          });
-          _setControlsTimer();
-        }
-      },
-      child: _controller != null && _controller!.value.isInitialized
-          ? AspectRatio(
-              aspectRatio: _controller!.value.aspectRatio,
-              child: Stack(
-                alignment: Alignment.center,
-                children: [
-                  VideoPlayer(_controller!),
-                  // 💡 아이콘을 표시할 최종 조건 설정 (OR 조건)
-                  Builder(
-                    builder: (context) {
-                      final bool shouldShowIcon =
-                          widget.isUIVisible || // 1. 메인 UI가 켜져 있거나
-                          !_controller!
-                              .value
-                              .isPlaying || // 2. 비디오가 일시 정지 상태이거나
-                          _showVideoControls; // 3. 사용자가 방금 탭해서 임시로 켜진 상태일 때
-
-                      return AnimatedOpacity(
-                        // 💡 최종 조건에 따라 투명도 조절
-                        opacity: shouldShowIcon ? 1.0 : 0.0,
-                        duration: const Duration(milliseconds: 300),
-                        child: IgnorePointer(
-                          ignoring: !shouldShowIcon, // 💡 최종 조건에 따라 터치 무시
-                          child:
-                              (!_controller!.value.isPlaying ||
-                                  _showVideoControls)
-                              ? Container(
-                                  decoration: const BoxDecoration(
-                                    color: Colors.black45,
-                                    shape: BoxShape.circle,
-                                  ),
-                                  padding: const EdgeInsets.all(12),
-                                  child: const Icon(
-                                    Icons.play_arrow,
-                                    color: Colors.white,
-                                    size: 48,
-                                  ),
-                                )
-                              : null,
-                        ),
-                      );
-                    },
-                  ),
-                ],
-              ),
-            )
-          : Container(
-              color: Colors.black,
-              child: const Center(child: CircularProgressIndicator()),
+          // 💡 탭할 때마다 아이콘을 잠시 보여주고 타이머를 시작
+          if (mounted) {
+            setState(() {
+              _showVideoControls = true;
+            });
+            _setControlsTimer();
+          }
+        },
+        child: Stack(
+          children: [
+            Center(
+              child: _controller != null && _controller!.value.isInitialized
+                  ? AspectRatio(
+                      aspectRatio: _controller!.value.aspectRatio,
+                      child: VideoPlayer(_controller!),
+                    )
+                  : const CircularProgressIndicator(),
             ),
-    );
+            if (_showVideoControls)
+              Positioned(
+                bottom: 20,
+                left: 20,
+                child: IconButton(
+                  icon: Icon(
+                    _controller!.value.isPlaying
+                        ? Icons.pause
+                        : Icons.play_arrow,
+                    color: Colors.white,
+                  ),
+                  onPressed: () {
+                    if (_controller!.value.isPlaying) {
+                      _controller!.pause();
+                    } else {
+                      _controller!.play();
+                    }
+                  },
+                ),
+              ),
+          ],
+        ),
+      );
+    }
+    return const SizedBox.shrink();
   }
 
   @override
   void dispose() {
-    _controlsTimer?.cancel(); // 💡 타이머 해제
-    // 💡 부모(_MediaViewerState)에서 관리하는 컨트롤러는 부모에서만 dispose 처리
-    // 자식 위젯에서 dispose() 호출 시 컨트롤러를 종료하면 안됨
-    // (이미 종료된 컨트롤러를 나중에 재사용할 때 크래시 발생)
+    _controlsTimer?.cancel();
     super.dispose();
+  }
+}
+
+class _VideoPlayerControls extends StatelessWidget {
+  final VideoPlayerController controller;
+
+  const _VideoPlayerControls({Key? key, required this.controller})
+    : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    return Stack(
+      alignment: Alignment.center,
+      children: [
+        VideoPlayer(controller),
+        // 💡 비디오 진행 표시줄 및 음량 버튼 추가
+        Positioned(
+          bottom: 0,
+          left: 0,
+          right: 0,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // 💡 비디오 진행 표시줄
+              VideoProgressIndicator(
+                controller,
+                allowScrubbing: true,
+                colors: const VideoProgressColors(
+                  playedColor: Colors.blueAccent,
+                  bufferedColor: Colors.white70,
+                  backgroundColor: Colors.white30,
+                ),
+              ),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  // 💡 현재 시간 및 전체 시간 텍스트
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 8.0),
+                    child: ValueListenableBuilder<VideoPlayerValue>(
+                      valueListenable: controller,
+                      builder: (context, value, child) {
+                        final pos = value.position;
+                        final dur = value.duration;
+                        return Text(
+                          '${_formatDuration(pos)} / ${_formatDuration(dur)}',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 12,
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                  // 💡 음량 버튼
+                  IconButton(
+                    icon: ValueListenableBuilder<VideoPlayerValue>(
+                      valueListenable: controller,
+                      builder: (context, value, child) {
+                        final muted = value.volume == 0.0;
+                        return Icon(
+                          muted ? Icons.volume_off : Icons.volume_up,
+                          color: Colors.white,
+                          size: 24,
+                        );
+                      },
+                    ),
+                    onPressed: () {
+                      final newVolume = controller.value.volume == 0.0
+                          ? 1.0
+                          : 0.0;
+                      controller.setVolume(newVolume);
+                    },
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  String _formatDuration(Duration duration) {
+    String twoDigits(int n) => n.toString().padLeft(2, '0');
+    final hours = duration.inHours;
+    final minutes = duration.inMinutes.remainder(60);
+    final seconds = duration.inSeconds.remainder(60);
+    if (hours > 0) {
+      return '$hours:${twoDigits(minutes)}:${twoDigits(seconds)}';
+    } else {
+      return '${twoDigits(minutes)}:${twoDigits(seconds)}';
+    }
   }
 }

@@ -1,0 +1,9 @@
+@echo off
+echo Flutter 환경 진단...
+flutter doctor
+echo 의존성 설치...
+flutter pub get
+echo 빌드 캐시 정리...
+flutter clean
+echo 준비 완료! flutter run 또는 flutter build apk 실행
+pause
