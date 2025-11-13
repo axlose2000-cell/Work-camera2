@@ -8,6 +8,7 @@ import 'package:audioplayers/audioplayers.dart';
 import 'package:photo_manager/photo_manager.dart';
 import 'package:flutter/services.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
+import 'package:permission_handler/permission_handler.dart';
 
 class GridPainter extends CustomPainter {
   @override
@@ -51,7 +52,7 @@ const String trashDirName = '.trash';
 enum CaptureMode { photo, video }
 
 class CameraScreen extends StatefulWidget {
-  const CameraScreen({Key? key}) : super(key: key);
+  const CameraScreen({super.key});
 
   @override
   State<CameraScreen> createState() => _CameraScreenState();
@@ -298,7 +299,7 @@ class _CameraScreenState extends State<CameraScreen>
         throw Exception('빈 비디오 파일입니다');
       }
 
-      final AssetEntity? entity = await PhotoManager.editor.saveVideo(
+      final AssetEntity entity = await PhotoManager.editor.saveVideo(
         tempFile,
         relativePath: workDirName,
       );
@@ -356,7 +357,7 @@ class _CameraScreenState extends State<CameraScreen>
       }
 
       final Uint8List bytes = await tempFile.readAsBytes();
-      final AssetEntity? entity = await PhotoManager.editor.saveImage(
+      final AssetEntity entity = await PhotoManager.editor.saveImage(
         bytes,
         relativePath: workDirName,
         filename: 'IMG_${DateTime.now().millisecondsSinceEpoch}.jpg',
@@ -452,9 +453,31 @@ class _CameraScreenState extends State<CameraScreen>
     final ps = await PhotoManager.requestPermissionExtend();
     if (ps.isAuth != true) {
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text('저장소 권한이 필요합니다.')));
+        // 권한 거부 시 더 자세한 다이얼로그 표시
+        showDialog(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: const Text('저장소 권한이 필요합니다'),
+            content: const Text(
+              '사진과 동영상을 저장하고 불러오기 위해 저장소 권한이 필요합니다.\n'
+              '앱 설정에서 권한을 허용해주세요.',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('취소'),
+              ),
+              TextButton(
+                onPressed: () {
+                  // openAppSettings()로 설정 앱으로 이동
+                  openAppSettings();
+                  Navigator.pop(context);
+                },
+                child: const Text('설정 열기'),
+              ),
+            ],
+          ),
+        );
       }
       return;
     }
@@ -513,7 +536,7 @@ class _CameraScreenState extends State<CameraScreen>
                 if (_isShotCountingDown)
                   Positioned.fill(
                     child: Container(
-                      color: Colors.black.withOpacity(0.35),
+                      color: Colors.black.withValues(alpha: 0.35),
                       child: Center(
                         child: Text(
                           '$_shotCountdown',

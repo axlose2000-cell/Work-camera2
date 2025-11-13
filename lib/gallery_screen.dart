@@ -73,7 +73,7 @@ class _GalleryScreenState extends State<GalleryScreen>
 
   // 휴지통 모드 상태 관리
   bool _isTrashMode = false;
-  List<AssetEntity> _trashList = []; // 휴지통에 있는 파일 목록
+  final List<AssetEntity> _trashList = []; // 휴지통에 있는 파일 목록
 
   // 사진 및 비디오 개수 상태 변수 추가
   int _photoCount = 0;
@@ -85,11 +85,9 @@ class _GalleryScreenState extends State<GalleryScreen>
 
   // [앱 평가 유도 로직 상수/키 수정]
   static const String _kFirstLaunchDate = 'rating_first_launch_date';
-  static const String _kDismissCount = 'rating_dismiss_count';
   static const String _kRatedOrPermanentlyDismissed =
       'rating_permanently_dismissed';
   static const String _kLastPromptDate = 'rating_last_prompt_date';
-  static const int _kMaxDismissals = 3;
 
   final _prefsMutex = Mutex();
 
@@ -681,7 +679,7 @@ class _GalleryScreenState extends State<GalleryScreen>
                     ),
                     if (isSelected)
                       Container(
-                        color: Colors.blue.withOpacity(0.5),
+                        color: Colors.blue.withValues(alpha: 0.5),
                         child: const Icon(
                           Icons.check_circle,
                           color: Colors.white,

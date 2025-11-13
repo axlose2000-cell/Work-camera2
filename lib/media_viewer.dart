@@ -45,6 +45,11 @@ class _MediaViewerState extends State<MediaViewer> {
   @override
   void initState() {
     super.initState();
+
+    // 💡 이미지 캐싱 최적화
+    imageCache.maximumSize = 100; // 최대 100개 이미지
+    imageCache.maximumSizeBytes = 50 * 1024 * 1024; // 50MB 제한
+
     final maxIndex = widget.mediaAssets.isEmpty
         ? 0
         : widget.mediaAssets.length - 1;
@@ -194,7 +199,7 @@ class _MediaViewerState extends State<MediaViewer> {
                   child: IgnorePointer(
                     ignoring: !_isUIVisible,
                     child: Container(
-                      color: Colors.black.withOpacity(0.5),
+                      color: Colors.black.withValues(alpha: 0.5),
                       padding: const EdgeInsets.symmetric(
                         horizontal: 8,
                         vertical: 8,
@@ -318,7 +323,7 @@ class _MediaViewerState extends State<MediaViewer> {
                           ),
 
                         Container(
-                          color: Colors.black.withOpacity(0.7),
+                          color: Colors.black.withValues(alpha: 0.7),
                           padding: const EdgeInsets.symmetric(vertical: 12),
                           child: SizedBox(
                             height: _thumbSize,
@@ -593,12 +598,12 @@ class _MediaPage extends StatefulWidget {
   final ValueChanged<bool> onScaleChanged; // 💡 NEW: 확대 상태 변경을 위한 콜백 추가
 
   const _MediaPage({
-    Key? key,
+    super.key,
     required this.asset,
     required this.index,
     required this.isUIVisible, // 💡 생성자에 추가
     required this.onScaleChanged, // 💡 생성자에 추가
-  }) : super(key: key);
+  });
 
   @override
   State<_MediaPage> createState() => _MediaPageState();
@@ -721,8 +726,7 @@ class _MediaPageState extends State<_MediaPage> {
 class _VideoPlayerControls extends StatelessWidget {
   final VideoPlayerController controller;
 
-  const _VideoPlayerControls({Key? key, required this.controller})
-    : super(key: key);
+  const _VideoPlayerControls({super.key, required this.controller});
 
   @override
   Widget build(BuildContext context) {
