@@ -1,62 +1,102 @@
-- [ ] Verify that the copilot-instructions.md file in the .github directory is created.
+# 업무용 사진/갤러리 관리 앱 - Copilot Instructions
 
-- [ ] Clarify Project Requirements
+## 프로젝트 개요
+이 프로젝트는 **업무용 사진과 갤러리를 효율적으로 관리하기 위한 Flutter 애플리케이션**입니다.
+- **플랫폼**: Android, iOS, Web
+- **주요 목적**: 업무 현장에서 사진/비디오 촬영 및 관리
+- **언어**: Dart (Flutter SDK 3.9.2+)
 
-- [ ] Scaffold the Project
+## 프로젝트 구조
 
-- [ ] Customize the Project
+### 핵심 컴포넌트
+```
+lib/
+├── main.dart           # 앱 진입점, Google Mobile Ads 초기화
+├── camera_screen.dart  # 카메라 촬영 화면 (사진/비디오)
+├── gallery_screen.dart # 갤러리 보기 및 관리 화면
+└── media_viewer.dart   # 미디어 상세 뷰어 (확대/축소, 비디오 재생)
+```
 
-- [ ] Install Required Extensions
+### 주요 기능
+1. **카메라 기능**
+   - 사진 촬영 및 비디오 녹화
+   - 플래시 제어, 카메라 전환 (전면/후면)
+   - 촬영 타이머 (0-10초)
+   - 그리드 오버레이
+   - 음소거 옵션
 
-- [ ] Compile the Project
+2. **갤러리 기능**
+   - 갤럭시 스타일 갤러리 뷰
+   - 듀얼 PageController (메인 뷰어 + 필름스트립)
+   - 이미지 확대/축소 (PhotoView)
+   - 비디오 재생 (VideoPlayer)
+   - 휴지통 시스템 (삭제/복원/영구삭제)
 
-- [ ] Create and Run Task
+3. **광고 통합**
+   - Google Mobile Ads (AdMob)
+   - 배너 광고 및 인터스티셜 광고
 
-- [ ] Launch the Project
+## 개발 가이드라인
 
-- [ ] Ensure Documentation is Complete
+### Flutter 개발 규칙
+- **Null Safety**: 모든 코드는 null safety를 준수해야 함
+- **State Management**: setState()를 사용한 기본 상태 관리
+- **비동기 처리**: Future/async-await 패턴 사용
+- **리소스 관리**: dispose()에서 모든 컨트롤러와 리소스 해제 필수
 
-COMMUNICATION RULES:
-- Avoid verbose explanations or printing full command outputs.
-- If a step is skipped, state that briefly (e.g. "No extensions needed").
-- Do not explain project structure unless asked.
-- Keep explanations concise and focused.
+### 주요 의존성
+```yaml
+camera: ^0.10.5+9              # 카메라 기능
+photo_manager: ^3.7.1          # 갤러리 자산 관리
+photo_view: ^0.15.0            # 이미지 확대/축소
+video_player: ^2.5.0           # 비디오 재생
+path_provider: ^2.1.3          # 파일 경로
+permission_handler: ^11.3.1    # 권한 관리
+google_mobile_ads: ^6.0.0      # 광고
+```
 
-DEVELOPMENT RULES:
-- Use '.' as the working directory unless user specifies otherwise.
-- Avoid adding media or external links unless explicitly requested.
-- Use placeholders only with a note that they should be replaced.
-- Use VS Code API tool only for VS Code extension projects.
-- Once the project is created, it is already opened in Visual Studio Code—do not suggest commands to open this project in Visual Studio again.
-- If the project setup information has additional rules, follow them strictly.
+### 코드 작성 규칙
+1. **메모리 관리**: 비디오 컨트롤러는 최대 3개까지만 캐싱
+2. **성능 최적화**: 불필요한 setState() 호출 최소화
+3. **에러 처리**: try-catch로 모든 비동기 작업 보호
+4. **생명주기**: WidgetsBindingObserver를 통한 앱 생명주기 관리
+5. **권한 처리**: Android 12+ 분리된 권한 (PHOTO, VIDEO) 고려
 
-FOLDER CREATION RULES:
-- Always use the current directory as the project root.
-- If you are running any terminal commands, use the '.' argument to ensure that the current working directory is used ALWAYS.
-- Do not create a new folder unless the user explicitly requests it besides a .vscode folder for a tasks.json file.
-- If any of the scaffolding commands mention that the folder name is not correct, let the user know to create a new folder with the correct name and then reopen it again in vscode.
+### 테스트 및 빌드
+- **테스트**: `flutter test`
+- **빌드**: `flutter build apk` (Android), `flutter build ios` (iOS)
+- **린트**: `flutter analyze`
+- **실행**: `flutter run`
 
-EXTENSION INSTALLATION RULES:
-- Only install extension specified by the get_project_setup_info tool. DO NOT INSTALL any other extensions.
+## 작업 시 주의사항
 
-PROJECT CONTENT RULES:
-- If the user has not specified project details, assume they want a "Hello World" project as a starting point.
-- Avoid adding links of any type (URLs, files, folders, etc.) or integrations that are not explicitly required.
-- Avoid generating images, videos, or any other media files unless explicitly requested.
-- If you need to use any media assets as placeholders, let the user know that these are placeholders and should be replaced with the actual assets later.
-- Ensure all generated components serve a clear purpose within the user's requested workflow.
-- If a feature is assumed but not confirmed, prompt the user for clarification before including it.
-- If you are working on a VS Code extension, use the VS Code API tool with a query to find relevant VS Code API references and samples related to that query.
+### 카메라 관련
+- 카메라 초기화 실패 시 사용자에게 명확한 에러 메시지 표시
+- 카메라가 없는 기기에서의 대체 처리 필요
+- 화면 회전 시 카메라 프리뷰 재조정
 
-TASK COMPLETION RULES:
-- Your task is complete when:
-  - Project is successfully scaffolded and compiled without errors
-  - copilot-instructions.md file in the .github directory exists in the project
-  - README.md file exists and is up to date
-  - User is provided with clear instructions to debug/launch the project
+### 갤러리 관련
+- 대량의 미디어 파일 로드 시 페이지네이션 적용
+- 썸네일 캐싱으로 성능 최적화
+- 휴지통 모드와 일반 모드 간 상태 관리 명확히
 
-Before starting a new task in the above plan, update progress in the plan.
--->
-- Work through each checklist item systematically.
-- Keep communication concise and focused.
-- Follow development best practices.
+### 광고 관련
+- 테스트 환경에서는 테스트 광고 ID 사용
+- 광고 로드 실패 시 앱 기능에 영향 없도록 처리
+
+## 알려진 이슈 및 해결 방법
+- **AsyncMissingMethod**: 카메라 초기화 전 dispose 호출 방지
+- **메모리 폭증**: 비디오 컨트롤러 무제한 캐싱 방지 (최대 3개)
+- **권한 문제**: AndroidManifest.xml에 Android 12+ 권한 명시
+- **null 안전성**: null 체크 후 `!` 연산자 사용
+
+## 프로젝트 상태
+- ✅ **Production Ready**: 모든 핵심 기능 구현 완료
+- ✅ **Compile Errors**: 0개
+- ✅ **Critical/High Priority**: 100% 완료
+
+## 커뮤니케이션 규칙
+- 코드 변경 시 최소한의 수정만 수행
+- 기존 작동하는 코드는 건드리지 않음
+- 간결하고 명확한 설명 유지
+- 한국어로 사용자와 소통
